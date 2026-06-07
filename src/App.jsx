@@ -5,6 +5,7 @@ import GameScreen from './screens/GameScreen';
 import ParentDashboard from './screens/ParentDashboard';
 import ProfileScreen from './screens/ProfileScreen';
 import ChatBorisScreen from './screens/ChatBorisScreen';
+import PuzzleScreen from './screens/PuzzleScreen';
 import { getActiveProfileId, loadProfiles, getCurrentProfileData } from './engine/profiles';
 
 const PLAYER_KEY = 'yochess_player';
@@ -83,6 +84,16 @@ export default function App() {
         onFindRating={handleFindRating}
         onSaveSettings={handleSaveSettings}
         onChatBoris={() => setScreen('chatBoris')}
+        onPuzzles={() => setScreen('puzzles')}
+      />
+    );
+  }
+
+  if (screen === 'puzzles') {
+    return (
+      <PuzzleScreen
+        player={player}
+        onBack={goHome}
       />
     );
   }
