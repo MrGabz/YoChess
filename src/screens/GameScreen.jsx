@@ -79,6 +79,11 @@ export default function GameScreen({ aiLevelId, playerColor: initColor = 'w', ca
   const [pendingPromotion, setPendingPromotion] = useState(null); // { from, to }
   const [calibrationResult, setCalibrationResult] = useState(null); // estimated rating
 
+  // Game action dialogs
+  const [showResignConfirm, setShowResignConfirm] = useState(false);
+  const [showDrawOffer, setShowDrawOffer] = useState(false);
+  const [drawResult, setDrawResult] = useState(null); // 'accepted' | 'declined' | null
+
   // Themes
   const [pieceThemeId, setPieceThemeIdState] = useState(loadPieceTheme);
   const [soundThemeId, setSoundThemeIdState] = useState(loadSoundTheme);
@@ -188,6 +193,14 @@ export default function GameScreen({ aiLevelId, playerColor: initColor = 'w', ca
     clearInterval(clockRef.current);
     setGameOver({ result, reason });
 
+    // Abort: no rating change — game hadn't really started
+    if (result === 'abort') {
+      setRatingDelta(0);
+      setCoachTips([{ emoji: '👋', text: 'Game aborted — no rating change.' }]);
+      if (soundOnRef.current) Sounds.draw();
+      return;
+    }
+
     const tips = generateCoachTips(finalMoveHistory, playerColor, result);
     setCoachTips(tips);
 
@@ -230,6 +243,37 @@ export default function GameScreen({ aiLevelId, playerColor: initColor = 'w', ca
       }, 1000);
     }
   }
+
+  // ── Game action handlers ────────────────────────────────────────────────────
+
+  function handleResign() {
+    setShowResignConfirm(false);
+    endGame('loss', 'resigned', moveHistoryRef.current);
+  }
+
+  function handleAbort() {
+    endGame('abort', 'aborted', moveHistoryRef.current);
+  }
+
+  function handleDrawOffer() {
+    setShowDrawOffer(false);
+    // AI decides based on move count and slight randomness
+    const moves = chess.history().length;
+    // More likely to accept in longer games or equal positions; less likely when AI is doing well
+    const acceptProb = moves < 8 ? 0.15 : moves < 20 ? 0.35 : 0.5;
+    if (Math.random() < acceptProb) {
+      setDrawResult('accepted');
+      setTimeout(() => {
+        endGame('draw', 'agreement', moveHistoryRef.current);
+        setDrawResult(null);
+      }, 1200);
+    } else {
+      setDrawResult('declined');
+      setTimeout(() => setDrawResult(null), 3000);
+    }
+  }
+
+  // ── AI move ─────────────────────────────────────────────────────────────────
 
   function doAiMove() {
     if (gameOverRef.current) return;
@@ -697,6 +741,177 @@ export default function GameScreen({ aiLevelId, playerColor: initColor = 'w', ca
               {coachHintData ? 'More ›' : 'Ask ›'}
             </span>
           )}
+        </div>
+      )}
+
+      {/* ── Game Action Buttons ── */}
+      {!gameOver && (
+        <div style={{
+          width: '100%', maxWidth: 520,
+          display: 'flex', gap: 8, marginTop: 6, marginBottom: 2,
+        }}>
+          {/* Abort — only available in first 4 total moves (≤ 2 per side) */}
+          {chess.history().length <= 4 && (
+            <button
+              onClick={handleAbort}
+              style={{
+                flex: 1, padding: '8px 0', borderRadius: 10,
+                background: 'rgba(255,255,255,0.06)',
+                border: '1px solid rgba(255,255,255,0.15)',
+                color: '#a09cc0', fontSize: 13, fontWeight: 800,
+                cursor: 'pointer', fontFamily: 'Nunito, sans-serif',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#f7c948'; e.currentTarget.style.color = '#f7c948'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#a09cc0'; }}
+              title="Abort — no rating change (first 4 moves only)"
+            >
+              ✕ Abort
+            </button>
+          )}
+
+          {/* Draw Offer */}
+          <button
+            onClick={() => setShowDrawOffer(true)}
+            disabled={!!drawResult}
+            style={{
+              flex: 1, padding: '8px 0', borderRadius: 10,
+              background: drawResult === 'accepted' ? 'rgba(76,201,240,0.2)' : 'rgba(255,255,255,0.06)',
+              border: `1px solid ${drawResult ? (drawResult === 'accepted' ? '#4cc9f0' : '#f72585') : 'rgba(255,255,255,0.15)'}`,
+              color: drawResult === 'declined' ? '#f72585' : drawResult === 'accepted' ? '#4cc9f0' : '#a09cc0',
+              fontSize: 13, fontWeight: 800,
+              cursor: drawResult ? 'default' : 'pointer',
+              fontFamily: 'Nunito, sans-serif',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { if (!drawResult) { e.currentTarget.style.borderColor = '#4cc9f0'; e.currentTarget.style.color = '#4cc9f0'; } }}
+            onMouseLeave={e => { if (!drawResult) { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#a09cc0'; } }}
+          >
+            {drawResult === 'declined' ? '❌ Draw Declined' : drawResult === 'accepted' ? '🤝 Draw Accepted!' : '🤝 Offer Draw'}
+          </button>
+
+          {/* Resign */}
+          <button
+            onClick={() => setShowResignConfirm(true)}
+            style={{
+              flex: 1, padding: '8px 0', borderRadius: 10,
+              background: 'rgba(255,255,255,0.06)',
+              border: '1px solid rgba(255,255,255,0.15)',
+              color: '#a09cc0', fontSize: 13, fontWeight: 800,
+              cursor: 'pointer', fontFamily: 'Nunito, sans-serif',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#f72585'; e.currentTarget.style.color = '#f72585'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#a09cc0'; }}
+          >
+            🏳️ Resign
+          </button>
+        </div>
+      )}
+
+      {/* Resign Confirm Modal */}
+      {showResignConfirm && (
+        <div
+          onClick={() => setShowResignConfirm(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 300,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'linear-gradient(135deg, #1a1550, #0f0c29)',
+              border: '2px solid rgba(247,37,133,0.4)',
+              borderRadius: 20, padding: '28px 24px',
+              maxWidth: 340, width: '100%', textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🏳️</div>
+            <h3 style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 8 }}>Resign?</h3>
+            <p style={{ color: '#a09cc0', fontSize: 14, marginBottom: 8 }}>
+              You'll take a <strong style={{ color: '#f72585' }}>full rating loss</strong>.
+            </p>
+            <p style={{ color: '#6b6090', fontSize: 12, marginBottom: 20 }}>
+              🎩 Boris says: "Every loss is a lesson — but make sure you really need to!"
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => setShowResignConfirm(false)}
+                style={{
+                  flex: 1, padding: '12px 0', borderRadius: 12,
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: '#fff', fontSize: 15, fontWeight: 800,
+                  cursor: 'pointer', fontFamily: 'Nunito, sans-serif',
+                }}
+              >Cancel</button>
+              <button
+                onClick={handleResign}
+                style={{
+                  flex: 1, padding: '12px 0', borderRadius: 12,
+                  background: 'linear-gradient(135deg, #f72585, #9b5de5)',
+                  border: 'none',
+                  color: '#fff', fontSize: 15, fontWeight: 800,
+                  cursor: 'pointer', fontFamily: 'Nunito, sans-serif',
+                }}
+              >Yes, Resign</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Draw Offer Confirm Modal */}
+      {showDrawOffer && (
+        <div
+          onClick={() => setShowDrawOffer(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 300,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: 'linear-gradient(135deg, #1a1550, #0f0c29)',
+              border: '2px solid rgba(76,201,240,0.4)',
+              borderRadius: 20, padding: '28px 24px',
+              maxWidth: 340, width: '100%', textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🤝</div>
+            <h3 style={{ fontSize: 22, fontWeight: 900, color: '#fff', marginBottom: 8 }}>Offer Draw?</h3>
+            <p style={{ color: '#a09cc0', fontSize: 14, marginBottom: 8 }}>
+              A draw gives you <strong style={{ color: '#4cc9f0' }}>½ point</strong> — only counts if {aiLevel.name} accepts.
+            </p>
+            <p style={{ color: '#6b6090', fontSize: 12, marginBottom: 20 }}>
+              {aiLevel.name} will decide based on the position!
+            </p>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <button
+                onClick={() => setShowDrawOffer(false)}
+                style={{
+                  flex: 1, padding: '12px 0', borderRadius: 12,
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  color: '#fff', fontSize: 15, fontWeight: 800,
+                  cursor: 'pointer', fontFamily: 'Nunito, sans-serif',
+                }}
+              >Cancel</button>
+              <button
+                onClick={handleDrawOffer}
+                style={{
+                  flex: 1, padding: '12px 0', borderRadius: 12,
+                  background: 'linear-gradient(135deg, #4cc9f0, #9b5de5)',
+                  border: 'none',
+                  color: '#fff', fontSize: 15, fontWeight: 800,
+                  cursor: 'pointer', fontFamily: 'Nunito, sans-serif',
+                }}
+              >Offer Draw</button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1292,14 +1507,18 @@ function SectionLabel({ children }) {
 
 function GameOverModal({ result, reason, aiLevel, player, ratingDelta, coachTips, onRematch, onHome }) {
   const cfg = {
-    win:  { emoji: '🏆', title: 'You Won!',    color: '#f7c948', bg: 'linear-gradient(135deg, #f7c948, #f97316)' },
-    loss: { emoji: '💪', title: 'Good Game!',  color: '#9b5de5', bg: 'linear-gradient(135deg, #9b5de5, #4cc9f0)' },
-    draw: { emoji: '🤝', title: "It's a Draw!", color: '#4cc9f0', bg: 'linear-gradient(135deg, #4cc9f0, #9b5de5)' },
-  }[result];
+    win:   { emoji: '🏆', title: 'You Won!',       color: '#f7c948', bg: 'linear-gradient(135deg, #f7c948, #f97316)' },
+    loss:  { emoji: '💪', title: 'Good Game!',     color: '#9b5de5', bg: 'linear-gradient(135deg, #9b5de5, #4cc9f0)' },
+    draw:  { emoji: '🤝', title: "It's a Draw!",   color: '#4cc9f0', bg: 'linear-gradient(135deg, #4cc9f0, #9b5de5)' },
+    abort: { emoji: '🚫', title: 'Game Aborted',   color: '#f7c948', bg: 'linear-gradient(135deg, #f7c948, #a09cc0)' },
+  }[result] || { emoji: '🤝', title: 'Game Over', color: '#4cc9f0', bg: 'linear-gradient(135deg, #4cc9f0, #9b5de5)' };
 
-  const reasonLabel = reason === 'timeout' ? 'On time'
-    : reason === 'checkmate' ? 'By checkmate'
-    : reason === 'stalemate' ? 'By stalemate'
+  const reasonLabel = reason === 'timeout'   ? 'On time'
+    : reason === 'checkmate'  ? 'By checkmate'
+    : reason === 'stalemate'  ? 'By stalemate'
+    : reason === 'resigned'   ? 'By resignation'
+    : reason === 'agreement'  ? 'By mutual agreement'
+    : reason === 'aborted'    ? 'No rating change'
     : 'Draw';
 
   return (
@@ -1332,7 +1551,7 @@ function GameOverModal({ result, reason, aiLevel, player, ratingDelta, coachTips
         </div>
 
         {/* Rating delta */}
-        {ratingDelta !== null && (
+        {ratingDelta !== null && result !== 'abort' && (
           <div style={{
             background: ratingDelta >= 0 ? 'rgba(74,222,128,0.12)' : 'rgba(248,37,133,0.12)',
             border: `1px solid ${ratingDelta >= 0 ? '#4ade80' : '#f72585'}`,

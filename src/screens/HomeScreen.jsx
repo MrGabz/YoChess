@@ -16,7 +16,7 @@ const TIERS = [
 
 const AVATAR_OPTIONS = ['♟️','♙','♞','♘','♝','♗','♜','♖','♛','♕','♚','♔','🎩','🏆','⚔️','🌟','🔥','🧙','👑','🦁'];
 
-export default function HomeScreen({ player, onStartGame, onParentDashboard, onSwitchProfile, onFindRating, onSaveSettings, onChatBoris }) {
+export default function HomeScreen({ player, onStartGame, onParentDashboard, onSwitchProfile, onFindRating, onSaveSettings, onChatBoris, onPuzzles }) {
   const ratingInfo = getRatingLabel(player.rating);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -232,6 +232,53 @@ export default function HomeScreen({ player, onStartGame, onParentDashboard, onS
       {/* Progress toward next level */}
       <NextLevelProgress player={player} />
 
+      {/* Daily Puzzle */}
+      <button
+        onClick={onPuzzles}
+        style={{
+          width: '100%',
+          maxWidth: 360,
+          padding: '16px 0',
+          borderRadius: 18,
+          border: '1px solid rgba(247,201,72,0.45)',
+          background: 'linear-gradient(135deg, rgba(247,201,72,0.18), rgba(249,115,22,0.12))',
+          color: '#fff',
+          fontSize: 17,
+          fontWeight: 900,
+          cursor: 'pointer',
+          marginBottom: 12,
+          fontFamily: 'Nunito, sans-serif',
+          transition: 'all 0.2s',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+        }}
+        onMouseEnter={e => {
+          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(247,201,72,0.35), rgba(249,115,22,0.25))';
+          e.currentTarget.style.borderColor = '#f7c948';
+          e.currentTarget.style.transform = 'scale(1.02)';
+        }}
+        onMouseLeave={e => {
+          e.currentTarget.style.background = 'linear-gradient(135deg, rgba(247,201,72,0.18), rgba(249,115,22,0.12))';
+          e.currentTarget.style.borderColor = 'rgba(247,201,72,0.45)';
+          e.currentTarget.style.transform = 'scale(1)';
+        }}
+      >
+        <span style={{ fontSize: 22 }}>🧩</span>
+        Daily Puzzle
+        <span style={{
+          background: 'rgba(247,201,72,0.25)',
+          border: '1px solid rgba(247,201,72,0.5)',
+          borderRadius: 8,
+          fontSize: 10,
+          fontWeight: 900,
+          color: '#f7c948',
+          padding: '2px 8px',
+          marginLeft: 4,
+        }}>NEW</span>
+      </button>
+
       {/* Chat with Boris */}
       <button
         onClick={onChatBoris}
@@ -295,6 +342,9 @@ export default function HomeScreen({ player, onStartGame, onParentDashboard, onS
         </button>
       )}
 
+      {/* Coming Soon Features */}
+      <ComingSoonSection />
+
       {/* Parent Dashboard */}
       <button
         onClick={onParentDashboard}
@@ -327,6 +377,69 @@ export default function HomeScreen({ player, onStartGame, onParentDashboard, onS
           }}
           onClose={() => setShowSettings(false)}
         />
+      )}
+    </div>
+  );
+}
+
+// ─── Coming Soon Section ──────────────────────────────────────────────────────
+
+const COMING_SOON = [
+  { emoji: '📖', label: 'Opening Lessons',   desc: 'Learn e4, d4 & Sicilian!' },
+  { emoji: '🔍', label: 'Game Analysis',      desc: 'Review your moves with engine' },
+  { emoji: '🏆', label: 'Achievements',       desc: 'Earn badges for milestones' },
+  { emoji: '🌐', label: 'Online Play',        desc: 'Challenge real players' },
+  { emoji: '🎖️', label: 'Tournaments',       desc: 'Bracket-style competitions' },
+  { emoji: '👁️', label: 'Blindfold Mode',    desc: 'Train your board vision' },
+];
+
+function ComingSoonSection() {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ width: '100%', maxWidth: 360, marginBottom: 8 }}>
+      <button
+        onClick={() => setOpen(p => !p)}
+        style={{
+          width: '100%', padding: '10px 16px',
+          background: 'rgba(255,255,255,0.04)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          borderRadius: 14,
+          color: '#5a5580', fontSize: 13, fontWeight: 700,
+          cursor: 'pointer', fontFamily: 'Nunito, sans-serif',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          transition: 'all 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(155,93,229,0.3)'; e.currentTarget.style.color = '#9b5de5'; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#5a5580'; }}
+      >
+        🚀 Coming Soon Features {open ? '▲' : '▼'}
+      </button>
+      {open && (
+        <div style={{
+          display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginTop: 10,
+          animation: 'slide-up 0.3s ease',
+        }}>
+          {COMING_SOON.map(f => (
+            <div key={f.label} style={{
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 12, padding: '10px 12px',
+              textAlign: 'center',
+            }}>
+              <div style={{ fontSize: 22, marginBottom: 4 }}>{f.emoji}</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#c0b8e0', marginBottom: 2 }}>{f.label}</div>
+              <div style={{ fontSize: 10, color: '#5a5580' }}>{f.desc}</div>
+              <div style={{
+                marginTop: 6,
+                fontSize: 9, fontWeight: 900,
+                color: '#9b5de5',
+                background: 'rgba(155,93,229,0.12)',
+                borderRadius: 6, padding: '2px 6px',
+                display: 'inline-block',
+              }}>COMING SOON</div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
